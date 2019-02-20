@@ -3,6 +3,8 @@ extern uint32_t KASLR_Slide;
 extern uint64_t KernelBase;
 extern mach_port_t TFP0;
 
+typedef bool BOOL;
+
 /*
  Purpose: Initialize jelbrekLib (first thing you have to call)
  Parameters:

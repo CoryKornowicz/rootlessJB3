@@ -14,6 +14,8 @@ typedef bool BOOL;
 
 #include <mach/mach.h>
 #include "jelbrekLib.h"
+#include "patchfinder64.h"
+
 
 int dumpOffsetsToFile(char *file) {
     

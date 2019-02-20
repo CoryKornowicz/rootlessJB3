@@ -6,6 +6,8 @@
 //  Copyright © 2018 Jake James. All rights reserved.
 //
 
+//TODO: restore mobile to stop crashing?
+
 #import "ViewController.h"
 #import "jelbrekLib.h"
 #import "exploit/voucher_swap/voucher_swap.h"
@@ -13,6 +15,8 @@
 #import "payload.h"
 #import "offsetsDump.h"
 #import "exploit/voucher_swap/kernel_slide.h"
+#import "exploit/voucher_swap/kernel_call.h"
+#import "exploit/voucher_swap/post/post.h"
 #import "insert_dylib.h"
 #import "vnode.h"
 #import "exploit/v3ntex/exploit.h"
@@ -28,6 +32,8 @@
 @property (weak, nonatomic) IBOutlet UISwitch *installiSuperSU;
 
 @property (weak, nonatomic) IBOutlet UITextView *logs;
+
+
 @end
 
 @implementation ViewController
@@ -78,8 +84,12 @@ struct utsname u;
 vm_size_t psize;
 int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
 
+Post *post;
+
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
+    post = [Post alloc];
     
     uint32_t flags;
     csops(getpid(), 0, &flags, 0);
@@ -101,7 +111,7 @@ int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
     __block mach_port_t taskforpidzero = MACH_PORT_NULL;
     
     uint64_t sb = 0;
-    BOOL debug = NO; // kids don't enable this
+    BOOL debug = YES; // kids don't enable this
     
     // for messing with files
     NSError *error = NULL;
@@ -177,20 +187,42 @@ int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
     }
     LOG("[*] Starting fun");
     
+    if (![post go]) {
+        printf("Uh Oh");
+        exit(1);
+    }
+    
     if (!KernelBase) {
         kernel_slide_init();
         init_with_kbase(taskforpidzero, 0xfffffff007004000 + kernel_slide);
+        if (kernel_call_init()){
+            printf("Kernel exectution initialized");
+        }else {
+            printf("Kernel exectution NOT initialized");
+        }
     }
-    else init_with_kbase(taskforpidzero, KernelBase);
+    else {
+        init_with_kbase(taskforpidzero, KernelBase);
+        if (kernel_call_init()){
+            printf("Kernel exectution initialized");
+        }else {
+            printf("Kernel exectution NOT initialized");
+        }
+    }
+    
+    
     
     LOG("[i] Kernel base: 0x%llx", KernelBase);
     
     //---- basics ----//
-    rootify(getpid()); // give us root
+    //Post does this
+    //rootify(getpid()); // give us root
     failIf(getuid(), "[-] Failed to get root");
     LOG("[i] uid: %d\n", getuid());
     
-    sb = unsandbox(getpid()); // escape sandbox
+    //Post does this too
+    //sb = unsandbox(getpid()); // escape sandbox
+    
     FILE *f = fopen("/var/mobile/.roottest", "w");
     failIf(!f, "[-] Failed to escape sandbox!");
     
@@ -218,7 +250,8 @@ int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
     // but, I haven't experienced issues
     // nor so rootlessJB people
     
-    UnlockNVRAM(); // use nvram command for nonce setting!
+    //not the right method for arm64e
+    //UnlockNVRAM(); // use nvram command for nonce setting!
     
     //---- bootstrap ----//
     if (!fileExists("/var/containers/Bundle/.installed_rootlessJB3")) {
@@ -482,8 +515,9 @@ int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
         fvp.v_mntvnodes = rvp.v_mntvnodes;
         fvp.v_ncchildren = rvp.v_ncchildren;
         fvp.v_nclinks = rvp.v_nclinks;
+                         
         
-        KernelWrite(realxpc, &fvp, sizeof(struct vnode)); // :o
+        kwrite(realxpc, &fvp, sizeof(struct vnode)); // :o
   
         LOG("[?] Are we still alive?!");
         
@@ -595,6 +629,7 @@ int csops(pid_t pid, unsigned int  ops, void * useraddr, size_t usersize);
 
         LOG("[+] Really jailbroken!");
         term_jelbrek();
+        kernel_call_deinit();
         
         // bye bye
         kill(bb, 9);
@@ -625,13 +660,14 @@ end:;
     
     if (sb) sandbox(getpid(), sb);
     term_jelbrek();
+    kernel_call_deinit();
 }
 - (IBAction)uninstall:(id)sender {
     //---- tfp0 ----//
     __block mach_port_t taskforpidzero = MACH_PORT_NULL;
     
     uint64_t sb = 0;
-    BOOL debug = NO; // kids don't enable this
+    BOOL debug = YES; // kids don't enable this
     
     NSError *error = NULL;
     
@@ -707,20 +743,41 @@ end:;
     }
     LOG("[*] Starting fun");
     
+    if (![post go]) {
+        printf("Uh Oh");
+        exit(1);
+    }
+    
     if (!KernelBase) {
         kernel_slide_init();
         init_with_kbase(taskforpidzero, 0xfffffff007004000 + kernel_slide);
+        if (kernel_call_init()){
+            printf("Kernel exectution initialized");
+        }else {
+            printf("Kernel exectution NOT initialized");
+        }
     }
-    else init_with_kbase(taskforpidzero, KernelBase);
+    else {
+        init_with_kbase(taskforpidzero, KernelBase);
+        if (kernel_call_init()){
+            printf("Kernel exectution initialized");
+        }else {
+            printf("Kernel exectution NOT initialized");
+        }
+    }
     
     LOG("[i] Kernel base: 0x%llx", KernelBase);
     
+    
     //---- basics ----//
-    rootify(getpid()); // give us root
+    //Post does this
+    //rootify(getpid()); // give us root
     LOG("[i] uid: %d\n", getuid());
     failIf(getuid(), "[-] Failed to get root");
     
-    sb = unsandbox(getpid()); // escape sandbox
+    //Post does this
+    //sb = unsandbox(getpid()); // escape sandbox
+    
     FILE *f = fopen("/var/mobile/.roottest", "w");
     failIf(!f, "[-] Failed to escape sandbox!");
     
@@ -762,6 +819,7 @@ end:;
 end:;
     if (sb) sandbox(getpid(), sb);
     term_jelbrek();
+    kernel_call_deinit();
 }
 
 - (void)didReceiveMemoryWarning {
