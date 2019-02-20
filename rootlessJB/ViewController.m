@@ -202,12 +202,12 @@ Post *post;
         }
     }
     else {
-        init_with_kbase(taskforpidzero, KernelBase);
         if (kernel_call_init()){
             printf("Kernel exectution initialized");
         }else {
             printf("Kernel exectution NOT initialized");
         }
+        init_with_kbase(taskforpidzero, KernelBase);
     }
     
     
